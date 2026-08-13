@@ -169,6 +169,11 @@ export class D1Storage implements IStorage {
     }
   }
 
+  async deleteAllPlayRecords(userName: string): Promise<void> {
+    const db = await this.getDatabase();
+    await db.prepare('DELETE FROM play_records WHERE username = ?').bind(userName).run();
+  }
+
   // 收藏相关
   async getFavorite(userName: string, key: string): Promise<Favorite | null> {
     try {
@@ -269,6 +274,11 @@ export class D1Storage implements IStorage {
       console.error('Failed to delete favorite:', err);
       throw err;
     }
+  }
+
+  async deleteAllFavorites(userName: string): Promise<void> {
+    const db = await this.getDatabase();
+    await db.prepare('DELETE FROM favorites WHERE username = ?').bind(userName).run();
   }
 
   // 用户相关
@@ -583,5 +593,17 @@ export class D1Storage implements IStorage {
       console.error('Failed to get all skip configs:', err);
       throw err;
     }
+  }
+
+  async clearAllData(): Promise<void> {
+    const db = await this.getDatabase();
+    await db.batch([
+      db.prepare('DELETE FROM play_records'),
+      db.prepare('DELETE FROM favorites'),
+      db.prepare('DELETE FROM users'),
+      db.prepare('DELETE FROM search_history'),
+      db.prepare('DELETE FROM skip_configs'),
+      db.prepare('DELETE FROM admin_config'),
+    ]);
   }
 }

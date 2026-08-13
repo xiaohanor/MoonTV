@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
-import { getStorage } from '@/lib/db';
+import { db } from '@/lib/db';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
@@ -33,17 +33,25 @@ export async function POST(request: NextRequest) {
       Announcement,
       SearchDownstreamMaxPage,
       SiteInterfaceCacheTime,
-      ImageProxy,
+      DoubanProxyType,
       DoubanProxy,
+      DoubanImageProxyType,
+      DoubanImageProxy,
       DisableYellowFilter,
+      FluidSearch,
+      EnableWebLive,
     } = body as {
       SiteName: string;
       Announcement: string;
       SearchDownstreamMaxPage: number;
       SiteInterfaceCacheTime: number;
-      ImageProxy: string;
+      DoubanProxyType: string;
       DoubanProxy: string;
+      DoubanImageProxyType: string;
+      DoubanImageProxy: string;
       DisableYellowFilter: boolean;
+      FluidSearch: boolean;
+      EnableWebLive: boolean;
     };
 
     // 参数校验
@@ -52,15 +60,17 @@ export async function POST(request: NextRequest) {
       typeof Announcement !== 'string' ||
       typeof SearchDownstreamMaxPage !== 'number' ||
       typeof SiteInterfaceCacheTime !== 'number' ||
-      typeof ImageProxy !== 'string' ||
+      typeof DoubanProxyType !== 'string' ||
       typeof DoubanProxy !== 'string' ||
-      typeof DisableYellowFilter !== 'boolean'
+      typeof DoubanImageProxyType !== 'string' ||
+      typeof DoubanImageProxy !== 'string' ||
+      typeof DisableYellowFilter !== 'boolean' ||
+      typeof FluidSearch !== 'boolean'
     ) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
     }
 
     const adminConfig = await getConfig();
-    const storage = getStorage();
 
     // 权限校验
     if (username !== process.env.USERNAME) {
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest) {
       const user = adminConfig.UserConfig.Users.find(
         (u) => u.username === username
       );
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role !== 'admin' || user.banned) {
         return NextResponse.json({ error: '权限不足' }, { status: 401 });
       }
     }
@@ -79,15 +89,17 @@ export async function POST(request: NextRequest) {
       Announcement,
       SearchDownstreamMaxPage,
       SiteInterfaceCacheTime,
-      ImageProxy,
+      DoubanProxyType,
       DoubanProxy,
+      DoubanImageProxyType,
+      DoubanImageProxy,
       DisableYellowFilter,
+      FluidSearch,
+      EnableWebLive: EnableWebLive ?? false,
     };
 
     // 写入数据库
-    if (storage && typeof (storage as any).setAdminConfig === 'function') {
-      await (storage as any).setAdminConfig(adminConfig);
-    }
+    await db.saveAdminConfig(adminConfig);
 
     return NextResponse.json(
       { ok: true },
