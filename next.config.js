@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
 const nextConfig = {
-  output: 'standalone',
+  output:
+    process.env.CF_PAGES === '1' || process.env.NEXT_ON_PAGES === '1'
+      ? undefined
+      : 'standalone',
   eslint: {
     dirs: ['src'],
   },
