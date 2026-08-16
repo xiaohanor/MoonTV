@@ -55,6 +55,7 @@ export const API_CONFIG = {
 
 // 在模块加载时根据环境决定配置来源
 let cachedConfig: AdminConfig;
+let configPromise: Promise<AdminConfig> | null = null;
 
 
 // 从配置文件补充管理员配置
@@ -296,6 +297,21 @@ export async function getConfig(): Promise<AdminConfig> {
     return cachedConfig;
   }
 
+  // generateMetadata 和 RootLayout 可能并发初始化配置，复用同一个请求。
+  if (configPromise) {
+    return configPromise;
+  }
+
+  configPromise = loadConfig();
+  try {
+    return await configPromise;
+  } finally {
+    configPromise = null;
+  }
+}
+
+async function loadConfig(): Promise<AdminConfig> {
+
   // 读 db
   let adminConfig: AdminConfig | null = null;
   try {
@@ -310,7 +326,7 @@ export async function getConfig(): Promise<AdminConfig> {
   }
   adminConfig = configSelfCheck(adminConfig);
   cachedConfig = adminConfig;
-  db.saveAdminConfig(cachedConfig);
+  await db.saveAdminConfig(cachedConfig);
   return cachedConfig;
 }
 
