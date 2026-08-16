@@ -1,5 +1,7 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
+import { getRequestContext } from '@cloudflare/next-on-pages';
+
 import { AdminConfig } from './admin.types';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
 
@@ -37,19 +39,19 @@ interface D1ExecResult {
   duration: number;
 }
 
-// 获取全局D1数据库实例
-function getD1Database(): D1Database {
-  return (process.env as any).DB as D1Database;
+declare global {
+  interface CloudflareEnv {
+    DB: D1Database;
+  }
 }
 
 export class D1Storage implements IStorage {
-  private db: D1Database | null = null;
-
   private async getDatabase(): Promise<D1Database> {
-    if (!this.db) {
-      this.db = getD1Database();
+    const { env } = getRequestContext();
+    if (!env.DB) {
+      throw new Error('Cloudflare D1 binding DB is not configured');
     }
-    return this.db;
+    return env.DB;
   }
 
   // 播放记录相关
