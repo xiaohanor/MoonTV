@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-console, @typescript-eslint/no-non-null-assertion */
 
+import { getOptionalRequestContext } from '@cloudflare/next-on-pages';
+
 import { db } from '@/lib/db';
 
 import { AdminConfig } from './admin.types';
@@ -55,7 +57,6 @@ export const API_CONFIG = {
 
 // 在模块加载时根据环境决定配置来源
 let cachedConfig: AdminConfig;
-let configPromise: Promise<AdminConfig> | null = null;
 
 
 // 从配置文件补充管理员配置
@@ -297,17 +298,10 @@ export async function getConfig(): Promise<AdminConfig> {
     return cachedConfig;
   }
 
-  // generateMetadata 和 RootLayout 可能并发初始化配置，复用同一个请求。
-  if (configPromise) {
-    return configPromise;
-  }
-
-  configPromise = loadConfig();
-  try {
-    return await configPromise;
-  } finally {
-    configPromise = null;
-  }
+  // 不要把请求上下文相关的 Promise 缓存在 Worker 全局。
+  // Cloudflare 取消请求时，某些绑定 Promise 可能不会 settle，
+  // 全局复用它会让后续请求永久等待。
+  return loadConfig();
 }
 
 async function loadConfig(): Promise<AdminConfig> {
@@ -321,12 +315,27 @@ async function loadConfig(): Promise<AdminConfig> {
   }
 
   // db 中无配置，执行一次初始化
-  if (!adminConfig) {
-    adminConfig = await getInitConfig("");
+  const needsPersistence = !adminConfig;
+  const resolvedConfig = adminConfig || (await getInitConfig(""));
+  const checkedConfig = configSelfCheck(resolvedConfig);
+  cachedConfig = checkedConfig;
+
+  // 首次初始化配置不应阻塞页面 SSR。使用 waitUntil 让 D1 写入脱离响应
+  // Promise；如果当前运行时没有请求上下文，则回退为受控的后台写入。
+  if (
+    needsPersistence &&
+    process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'localstorage'
+  ) {
+    const saveConfig = db.saveAdminConfig(checkedConfig).catch((error) => {
+      console.error('保存管理员配置失败:', error);
+    });
+    const requestContext = getOptionalRequestContext();
+    if (requestContext) {
+      requestContext.ctx.waitUntil(saveConfig);
+    } else {
+      void saveConfig;
+    }
   }
-  adminConfig = configSelfCheck(adminConfig);
-  cachedConfig = adminConfig;
-  await db.saveAdminConfig(cachedConfig);
   return cachedConfig;
 }
 

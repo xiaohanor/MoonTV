@@ -16,21 +16,11 @@ import { ThemeProvider } from '../components/ThemeProvider';
 const inter = Inter({ subsets: ['latin'] });
 export const dynamic = 'force-dynamic';
 
-// 动态生成 metadata，支持配置更新后的标题变化
-export async function generateMetadata(): Promise<Metadata> {
-  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
-  const config = await getConfig();
-  let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
-  if (storageType !== 'localstorage') {
-    siteName = config.SiteConfig.SiteName;
-  }
-
-  return {
-    title: siteName,
-    description: '影视聚合',
-    manifest: '/manifest.json',
-  };
-}
+export const metadata: Metadata = {
+  title: process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV',
+  description: '影视聚合',
+  manifest: '/manifest.json',
+};
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
