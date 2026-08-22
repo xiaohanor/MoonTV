@@ -7,8 +7,6 @@ import { Inter } from 'next/font/google';
 
 import './globals.css';
 
-import { getConfig } from '@/lib/config';
-
 import { GlobalErrorIndicator } from '../components/GlobalErrorIndicator';
 import { SiteProvider } from '../components/SiteProvider';
 import { ThemeProvider } from '../components/ThemeProvider';
@@ -26,54 +24,34 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
-
-  let siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
-  let announcement =
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTV';
+  const announcement =
     process.env.ANNOUNCEMENT ||
     '本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。';
 
-  let doubanProxyType = process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'cmliussss-cdn-tencent';
-  let doubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
-  let doubanImageProxyType =
+  const doubanProxyType =
+    process.env.NEXT_PUBLIC_DOUBAN_PROXY_TYPE || 'cmliussss-cdn-tencent';
+  const doubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
+  const doubanImageProxyType =
     process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE || 'cmliussss-cdn-tencent';
-  let doubanImageProxy = process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '';
-  let disableYellowFilter =
+  const doubanImageProxy = process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '';
+  const disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
-  let fluidSearch = process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false';
-  let enableWebLive = false;
-  let customCategories = [] as {
+  const fluidSearch = process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false';
+  const enableWebLive = false;
+  const customCategories = [] as {
     name: string;
     type: 'movie' | 'tv';
     query: string;
   }[];
-  if (storageType !== 'localstorage') {
-    const config = await getConfig();
-    siteName = config.SiteConfig.SiteName;
-    announcement = config.SiteConfig.Announcement;
-
-    doubanProxyType = config.SiteConfig.DoubanProxyType;
-    doubanProxy = config.SiteConfig.DoubanProxy;
-    doubanImageProxyType = config.SiteConfig.DoubanImageProxyType;
-    doubanImageProxy = config.SiteConfig.DoubanImageProxy;
-    disableYellowFilter = config.SiteConfig.DisableYellowFilter;
-    customCategories = config.CustomCategories.filter(
-      (category) => !category.disabled
-    ).map((category) => ({
-      name: category.name || '',
-      type: category.type,
-      query: category.query,
-    }));
-    fluidSearch = config.SiteConfig.FluidSearch;
-    enableWebLive = config.SiteConfig.EnableWebLive ?? false;
-  }
-
-  // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
+  // 根布局不能在 React SSR 中读取 D1。@cloudflare/next-on-pages 的请求上下文
+  // 在该场景可能留下未完成的 Promise，导致 Workers 以 1101 终止请求。
+  // D1 中的公开配置会在 SiteProvider 水合后通过 /api/server-config 加载。
   const runtimeConfig = {
     STORAGE_TYPE: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage',
     DOUBAN_PROXY_TYPE: doubanProxyType,
