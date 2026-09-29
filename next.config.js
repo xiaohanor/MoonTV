@@ -1,21 +1,13 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
-
 const nextConfig = {
-  output:
-    process.env.CF_PAGES === '1' || process.env.NEXT_ON_PAGES === '1'
-      ? undefined
-      : 'standalone',
+  output: 'standalone',
   eslint: {
     dirs: ['src'],
   },
 
   reactStrictMode: false,
-  swcMinify: false,
-
-  experimental: {
-    instrumentationHook: process.env.NODE_ENV === 'production',
-  },
+  swcMinify: true,
 
   // Uncoment to add domain whitelist
   images: {

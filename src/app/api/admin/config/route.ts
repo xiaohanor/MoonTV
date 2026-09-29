@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       result.Role = 'owner';
     } else {
       const user = config.UserConfig.Users.find((u) => u.username === username);
-      if (user && user.role === 'admin' && !user.banned) {
+      if (user && user.role === 'admin') {
         result.Role = 'admin';
       } else {
         return NextResponse.json(
