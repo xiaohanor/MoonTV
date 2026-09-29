@@ -547,6 +547,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
           {!isLoading && <ImagePlaceholder aspectRatio='aspect-[2/3]' />}
           {/* 图片 */}
           <Image
+            key={actualPoster}
             src={processImageUrl(actualPoster)}
             alt={actualTitle}
             fill
@@ -555,14 +556,26 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
             loading='lazy'
             onLoadingComplete={() => setIsLoading(true)}
             onError={(e) => {
-              // 图片加载失败时的重试机制
               const img = e.target as HTMLImageElement;
-              if (!img.dataset.retried) {
-                img.dataset.retried = 'true';
-                setTimeout(() => {
-                  img.src = processImageUrl(actualPoster);
-                }, 2000);
-              }
+              const failedSources = new Set<string>(
+                JSON.parse(img.dataset.failedPosterSources || '[]')
+              );
+              failedSources.add(img.currentSrc || img.src);
+              img.dataset.failedPosterSources = JSON.stringify(
+                Array.from(failedSources)
+              );
+
+              const fallbackSources = [
+                actualPoster,
+                `/api/image-proxy?url=${encodeURIComponent(actualPoster)}`,
+              ];
+              const nextSource = fallbackSources.find(
+                (source) =>
+                  source &&
+                  !failedSources.has(new URL(source, window.location.href).href)
+              );
+
+              if (nextSource) img.src = nextSource;
             }}
             style={{
               // 禁用图片的默认长按效果
