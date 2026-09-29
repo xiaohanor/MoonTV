@@ -22,36 +22,49 @@ interface DoubanCategoryApiResponse {
 async function fetchDoubanData(
   url: string
 ): Promise<DoubanCategoryApiResponse> {
-  // 添加超时控制
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+  const parsedUrl = new URL(url);
+  const apiPath = `${parsedUrl.pathname}${parsedUrl.search}`;
+  const fallbackUrls = [
+    `https://m.douban.cmliussss.net${apiPath}`,
+    `https://m.douban.cmliussss.com${apiPath}`,
+    url,
+  ];
+  let lastError: Error | undefined;
 
-  // 设置请求选项，包括信号和头部
-  const fetchOptions = {
-    signal: controller.signal,
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-      Referer: 'https://movie.douban.com/',
-      Accept: 'application/json, text/plain, */*',
-      Origin: 'https://movie.douban.com',
-    },
-  };
+  for (const target of fallbackUrls) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  try {
-    // 尝试直接访问豆瓣API
-    const response = await fetch(url, fetchOptions);
-    clearTimeout(timeoutId);
+    try {
+      const response = await fetch(target, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          Referer: 'https://movie.douban.com/',
+          Accept: 'application/json, text/plain, */*',
+          Origin: 'https://movie.douban.com',
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data: DoubanCategoryApiResponse = await response.json();
+      if (!Array.isArray(data.items)) {
+        throw new Error('豆瓣接口返回数据格式异常');
+      }
+
+      return data;
+    } catch (error) {
+      lastError = error as Error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return await response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
   }
+
+  throw lastError || new Error('所有豆瓣数据源均请求失败');
 }
 
 export const runtime = 'edge';
