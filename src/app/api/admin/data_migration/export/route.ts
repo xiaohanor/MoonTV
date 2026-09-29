@@ -1,17 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { promisify } from 'util';
-import { gzip } from 'zlib';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { SimpleCrypto } from '@/lib/crypto';
 import { db } from '@/lib/db';
 import { CURRENT_VERSION } from '@/lib/version';
 
-export const runtime = 'nodejs';
-
-const gzipAsync = promisify(gzip);
+export const runtime = 'edge';
 
 export async function POST(req: NextRequest) {
   try {
@@ -89,10 +85,16 @@ export async function POST(req: NextRequest) {
     const jsonData = JSON.stringify(exportData);
 
     // 先压缩数据
-    const compressedData = await gzipAsync(jsonData);
+    const compressedData = new Uint8Array(
+      await new Response(
+        new Blob([new TextEncoder().encode(jsonData)])
+          .stream()
+          .pipeThrough(new CompressionStream('gzip'))
+      ).arrayBuffer()
+    );
 
     // 使用提供的密码加密压缩后的数据
-    const encryptedData = SimpleCrypto.encrypt(compressedData.toString('base64'), password);
+    const encryptedData = SimpleCrypto.encrypt(toBase64(compressedData), password);
 
     // 生成文件名
     const now = new Date();
@@ -116,6 +118,17 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(
+      ...Array.from(bytes.subarray(index, index + chunkSize))
+    );
+  }
+  return btoa(binary);
 }
 
 // 辅助函数：获取用户密码（通过数据库直接访问）

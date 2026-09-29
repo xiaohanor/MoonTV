@@ -2,6 +2,8 @@
 
 'use client';
 
+export const runtime = 'edge';
+
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { Heart } from 'lucide-react';

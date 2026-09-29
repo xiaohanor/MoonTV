@@ -65,11 +65,25 @@
 | 语言      | TypeScript 4                                                                                          |
 | 播放器    | [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) · [HLS.js](https://github.com/video-dev/hls.js/) |
 | 代码质量  | ESLint · Prettier · Jest                                                                              |
-| 部署      | Docker                                                                    |
+| 部署      | Docker · Cloudflare Pages（Next-on-Pages）                                  |
 
 ## 部署
 
-本项目**仅支持 Docker 或其他基于 Docker 的平台** 部署。
+本项目支持 Docker，也提供 Cloudflare Pages 的 Next-on-Pages 构建链路。
+
+### Cloudflare Pages 部署
+
+在 Pages 项目的构建设置中填写：
+
+| 配置项 | 值 |
+| --- | --- |
+| 框架预设 | 无 |
+| 构建命令 | `pnpm install --frozen-lockfile && pnpm run pages:build` |
+| 构建输出目录 | `.vercel/output/static` |
+
+再到 **设置 → Functions → Compatibility flags**，为预览和生产环境添加 `nodejs_compat` 标志。Cloudflare Pages 会自动设置 `CF_PAGES=1`，构建时会据此关闭 Next.js 的 standalone 输出。
+
+> `@cloudflare/next-on-pages` 已弃用；这条链路用于兼容现有 Pages 项目。新部署可评估迁移到 Cloudflare Workers 的 Next.js 适配方案。
 
 ### zeabur 一键部署
 
