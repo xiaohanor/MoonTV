@@ -1,18 +1,20 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { AdminConfig } from './admin.types';
+import { D1Storage } from './d1.db';
 import { KvrocksStorage } from './kvrocks.db';
 import { RedisStorage } from './redis.db';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
 import { UpstashRedisStorage } from './upstash.db';
 
-// storage type 常量: 'localstorage' | 'redis' | 'upstash'，默认 'localstorage'
+// storage type 常量: 'localstorage' | 'redis' | 'upstash' | 'kvrocks' | 'd1'
 const STORAGE_TYPE =
   (process.env.NEXT_PUBLIC_STORAGE_TYPE as
     | 'localstorage'
     | 'redis'
     | 'upstash'
     | 'kvrocks'
+    | 'd1'
     | undefined) || 'localstorage';
 
 // 创建存储实例
@@ -24,6 +26,8 @@ function createStorage(): IStorage {
       return new UpstashRedisStorage();
     case 'kvrocks':
       return new KvrocksStorage();
+    case 'd1':
+      return new D1Storage();
     case 'localstorage':
     default:
       return null as unknown as IStorage;
@@ -54,14 +58,17 @@ export class DbManager {
     this.storage = getStorage();
     // 启动时自动触发数据迁移（异步，不阻塞构造）
     if (this.storage && typeof this.storage.migrateData === 'function') {
-      this.migrationPromise = this.storage.migrateData().then(async () => {
-        // 数据结构迁移完成后，执行密码哈希迁移
-        if (typeof this.storage.migratePasswords === 'function') {
-          await this.storage.migratePasswords();
-        }
-      }).catch((err) => {
-        console.error('数据迁移异常:', err);
-      });
+      this.migrationPromise = this.storage
+        .migrateData()
+        .then(async () => {
+          // 数据结构迁移完成后，执行密码哈希迁移
+          if (typeof this.storage.migratePasswords === 'function') {
+            await this.storage.migratePasswords();
+          }
+        })
+        .catch((err) => {
+          console.error('数据迁移异常:', err);
+        });
     }
   }
 
